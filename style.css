@@ -1,0 +1,45 @@
+/* Importação de fonte moderna */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
+
+[data-testid="stAppViewContainer"] {
+    background-color: #0e1117;
+    font-family: 'Inter', sans-serif;
+}
+
+/* Estilização dos Cards de KPI */
+.st-emotion-cache-12w04p9 { /* Container de borda do Streamlit */
+    background-color: #161b22 !important;
+    border: 1px solid #30363d !important;
+    border-radius: 10px !important;
+    transition: transform 0.2s;
+}
+
+.st-emotion-cache-12w04p9:hover {
+    transform: translateY(-5px);
+    border-color: #58a6ff !important;
+}
+
+/* Alinhamento de botões e inputs */
+[data-testid="stHorizontalBlock"] {
+    align-items: flex-end !important;
+    gap: 1rem !important;
+}
+
+/* Botão Adicionar (Branco/Destaque) */
+div.stButton > button:first-child:not([key*="del"]) {
+    background-color: #ffffff !important;
+    color: #0d1117 !important;
+    border-radius: 8px !important;
+    border: none !important;
+    font-weight: 600 !important;
+    padding: 0.5rem 1rem !important;
+}
+
+/* Estilo das Tabelas (Linhas) */
+.lista-item {
+    background-color: #161b22;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 5px;
+    border-left: 4px solid #30363d;
+}
