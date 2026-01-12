@@ -61,7 +61,7 @@ def create_tables():
         )
     """)
 
-    # 5. TABELA DE DÍVIDAS (Nova)
+    # 5. TABELA DE DÍVIDAS (Atualizada com Responsável e Forma de Pagto)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS dividas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -69,6 +69,9 @@ def create_tables():
             valor_total REAL NOT NULL,
             valor_pago REAL DEFAULT 0,
             vencimento TEXT,
+            responsavel TEXT,
+            forma_pagto TEXT,
+            total_parcelas INTEGER DEFAULT 1,
             status TEXT DEFAULT 'Ativa'
         )
     """)
@@ -79,7 +82,7 @@ def create_tables():
     cursor.execute("CREATE TABLE IF NOT EXISTS contas_bancarias (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT)")
     cursor.execute("CREATE TABLE IF NOT EXISTS responsaveis (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT)")
 
-    # BLOCO DE MIGRAÇÃO (Segurança para colunas novas)
+    # --- BLOCO DE MIGRAÇÃO (Evita erros se as colunas forem novas) ---
     try: cursor.execute("ALTER TABLE metas ADD COLUMN icone TEXT DEFAULT '🎯'")
     except: pass
     
@@ -89,11 +92,14 @@ def create_tables():
     try: cursor.execute("ALTER TABLE dividas ADD COLUMN status TEXT DEFAULT 'Ativa'")
     except: pass
 
-
     try: cursor.execute("ALTER TABLE dividas ADD COLUMN forma_pagto TEXT")
     except: pass
 
     try: cursor.execute("ALTER TABLE dividas ADD COLUMN total_parcelas INTEGER DEFAULT 1")
+    except: pass
+
+    # Inclusão da coluna responsável na migração
+    try: cursor.execute("ALTER TABLE dividas ADD COLUMN responsavel TEXT")
     except: pass
 
     conn.commit()
