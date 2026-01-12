@@ -17,7 +17,7 @@ from modules.cadastros import exibir_cadastros
 
 # --- MENU LATERAL ---
 with st.sidebar:
-    st.title("💰 Controle Financeiro")
+    st.title("Controle Financeiro")
     st.markdown("---")
     menu = st.radio(
         "Menu Principal",
