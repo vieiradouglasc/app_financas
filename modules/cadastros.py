@@ -18,7 +18,6 @@ def deletar_cadastro(tabela, id_item):
 def exibir_cadastros():
     st.markdown("<h2 style='color: white;'>Configurações e Cadastros</h2>", unsafe_allow_html=True)
     
-    # Criadas 5 abas para incluir Investimentos
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "🏷️ Categorias", 
         "💳 Cartões", 
@@ -29,12 +28,11 @@ def exibir_cadastros():
     
     conn = create_connection()
 
-    # --- ABA 1: CATEGORIAS (Simulado Reset com Rerun) ---
+    # --- ABA 1: CATEGORIAS ---
     with tab1:
         st.subheader("Gerenciar Categorias")
         exp_rec = st.expander("➕ Adicionar Nova Categoria")
         with exp_rec:
-            # Usando uma chave (key) única para ajudar no reset do widget se necessário
             tipo_cat = st.radio("Tipo", ["Receita", "Despesa"], horizontal=True)
             nome_cat = st.text_input("Nome da Categoria", key="input_nome_cat")
             tipo_custo = st.selectbox("Se Despesa, qual o custo?", ["Fixo", "Variável"]) if tipo_cat == "Despesa" else "Receita"
@@ -47,7 +45,7 @@ def exibir_cadastros():
                         conn.execute("INSERT INTO categorias_despesas (nome, tipo) VALUES (?,?)", (nome_cat, tipo_custo))
                     conn.commit()
                     st.toast("Categoria salva!", icon="✅")
-                    st.rerun() # O rerun limpa o campo nome_cat automaticamente
+                    st.rerun()
 
         st.divider()
         col1, col2 = st.columns(2)
@@ -68,9 +66,10 @@ def exibir_cadastros():
                 if c_v2.button("🗑️", key=f"del_catdesp_{row['id']}"):
                     deletar_cadastro("categorias_despesas", row['id'])
 
-    # --- ABA 2: CARTÕES (Com clear_on_submit) ---
+    # --- ABA 2: CARTÕES (Crédito e Benefícios) ---
     with tab2:
-        st.subheader("Cartões de Crédito")
+        # Seção de Cartões de Crédito
+        st.subheader("💳 Cartões de Crédito")
         with st.form("form_cartao", clear_on_submit=True):
             c1, c2 = st.columns([2, 1])
             nome = c1.text_input("Nome do Cartão")
@@ -93,7 +92,35 @@ def exibir_cadastros():
             if col_b2.button("🗑️", key=f"del_card_{row['id']}"):
                 deletar_cadastro("cartoes_credito", row['id'])
 
-    # --- ABA 3: CONTAS (Com clear_on_submit) ---
+        st.markdown("---")
+        
+        # Nova Seção: Vale Alimentação / Presente
+        st.subheader("🍏 Vale Alimentação / Presente")
+        with st.form("form_vale", clear_on_submit=True):
+            cv1, cv2 = st.columns([2, 1])
+            nome_vale = cv1.text_input("Nome do Benefício (ex: VR, Ticket, Gift Card)")
+            saldo_vale = cv2.number_input("Saldo Inicial", min_value=0.0)
+            
+            if st.form_submit_button("Salvar Benefício"):
+                if nome_vale:
+                    # Assumindo que você tenha ou criará a tabela cartoes_beneficios
+                    conn.execute("INSERT INTO cartoes_beneficios (nome, saldo) VALUES (?,?)", (nome_vale, saldo_vale))
+                    conn.commit()
+                    st.toast("Benefício cadastrado!", icon="🍏")
+                    st.rerun()
+
+        # Listagem de Benefícios (Tente ler da tabela, se não existir, ignore para não quebrar)
+        try:
+            df_v = pd.read_sql_query("SELECT * FROM cartoes_beneficios", conn)
+            for _, row in df_v.iterrows():
+                col_v1, col_v2 = st.columns([0.9, 0.1])
+                col_v1.write(f"🍏 **{row['nome']}** - Saldo: R$ {row['saldo']:.2f}")
+                if col_v2.button("🗑️", key=f"del_vale_{row['id']}"):
+                    deletar_cadastro("cartoes_beneficios", row['id'])
+        except:
+            st.info("Cadastre seu primeiro vale alimentação acima.")
+
+    # --- ABA 3: CONTAS ---
     with tab3:
         with st.form("form_conta", clear_on_submit=True):
             n = st.text_input("Novo Banco/Conta")
@@ -110,7 +137,7 @@ def exibir_cadastros():
             if col_b2.button("🗑️", key=f"del_conta_{row['id']}"):
                 deletar_cadastro("contas_bancarias", row['id'])
 
-    # --- ABA 4: RESPONSÁVEIS (Com clear_on_submit) ---
+    # --- ABA 4: RESPONSÁVEIS ---
     with tab4:
         with st.form("form_resp", clear_on_submit=True):
             n = st.text_input("Nome")
@@ -118,7 +145,7 @@ def exibir_cadastros():
                 if n:
                     conn.execute("INSERT INTO responsaveis (nome) VALUES (?)", (n,))
                     conn.commit()
-                    st.toast("Responsável salvo!", icon="👤")
+                    st.toast("Responsável salva!", icon="👤")
                     st.rerun()
         df_resp = pd.read_sql_query("SELECT * FROM responsaveis", conn)
         for _, row in df_resp.iterrows():
@@ -127,7 +154,7 @@ def exibir_cadastros():
             if col_b2.button("🗑️", key=f"del_resp_{row['id']}"):
                 deletar_cadastro("responsaveis", row['id'])
 
-    # --- ABA 5: INVESTIMENTOS (Com clear_on_submit) ---
+    # --- ABA 5: INVESTIMENTOS ---
     with tab5:
         st.subheader("🏦 Tipos de Investimento")
         with st.form("form_invest", clear_on_submit=True):

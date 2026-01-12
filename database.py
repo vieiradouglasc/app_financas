@@ -32,7 +32,7 @@ def create_tables():
         )
     """)
     
-    # 3. TABELA DE CARTÕES
+    # 3. TABELA DE CARTÕES DE CRÉDITO
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS cartoes_credito (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,7 +43,16 @@ def create_tables():
         )
     """)
 
-    # 4. TABELAS DE INVESTIMENTOS
+    # 4. NOVO: TABELA DE CARTÕES DE BENEFÍCIOS (Vale Alimentação / Presente)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS cartoes_beneficios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL,
+            saldo REAL DEFAULT 0
+        )
+    """)
+
+    # 5. TABELAS DE INVESTIMENTOS
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS tipos_investimentos (
             id INTEGER PRIMARY KEY AUTOINCREMENT, 
@@ -61,7 +70,7 @@ def create_tables():
         )
     """)
 
-    # 5. TABELA DE DÍVIDAS (Atualizada com Responsável e Forma de Pagto)
+    # 6. TABELA DE DÍVIDAS
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS dividas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,13 +85,14 @@ def create_tables():
         )
     """)
     
-    # 6. TABELAS AUXILIARES
+    # 7. TABELAS AUXILIARES
     cursor.execute("CREATE TABLE IF NOT EXISTS categorias_receitas (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT)")
     cursor.execute("CREATE TABLE IF NOT EXISTS categorias_despesas (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT, tipo TEXT)")
     cursor.execute("CREATE TABLE IF NOT EXISTS contas_bancarias (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT)")
     cursor.execute("CREATE TABLE IF NOT EXISTS responsaveis (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT)")
 
-    # --- BLOCO DE MIGRAÇÃO (Evita erros se as colunas forem novas) ---
+    # --- BLOCO DE MIGRAÇÃO ---
+    # Garante que colunas novas existam em bancos de dados antigos
     try: cursor.execute("ALTER TABLE metas ADD COLUMN icone TEXT DEFAULT '🎯'")
     except: pass
     
@@ -98,7 +108,6 @@ def create_tables():
     try: cursor.execute("ALTER TABLE dividas ADD COLUMN total_parcelas INTEGER DEFAULT 1")
     except: pass
 
-    # Inclusão da coluna responsável na migração
     try: cursor.execute("ALTER TABLE dividas ADD COLUMN responsavel TEXT")
     except: pass
 
