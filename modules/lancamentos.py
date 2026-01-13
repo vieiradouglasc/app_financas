@@ -3,6 +3,7 @@ import pandas as pd
 from database import create_connection
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
+import re
 
 # --- FUNÇÕES DE AÇÃO ---
 
@@ -13,17 +14,65 @@ def deletar_item(id_item):
     conn.close()
     st.rerun()
 
-@st.dialog("Editar Lançamento")
+@st.dialog("Editar Lançamento", width="medium")
 def popup_editar_item(row):
     st.markdown(f"### ✏️ Editar Registro")
-    nova_data = st.date_input("Data", pd.to_datetime(row['data']))
-    nova_desc = st.text_input("Descrição", str(row['descricao']))
-    novo_valor = st.number_input("Valor R$", min_value=0.0, value=float(row['valor']), format="%.2f")
     
+    conn = create_connection()
+    df_resp = pd.read_sql_query("SELECT nome FROM responsaveis ORDER BY nome ASC", conn)
+    try:
+        df_contas = pd.read_sql_query("SELECT nome FROM contas ORDER BY nome ASC", conn)
+        contas = df_contas['nome'].tolist() if not df_contas.empty else ["Conta Principal"]
+    except: contas = ["Conta Principal"]
+    
+    # Extrair valores atuais da descrição via Regex para preencher o formulário
+    desc_limpa = row['descricao'].split(" | ")[0]
+    resp_atual = re.search(r"👤 (.*?)(?: \||$)", row['descricao'])
+    resp_atual = resp_atual.group(1) if resp_atual else "Geral"
+    
+    forma_atual = "Pix"
+    for f in ["Pix", "Boleto", "Dinheiro", "Débito", "Crédito"]:
+        if f in row['descricao']:
+            forma_atual = f
+            break
+            
+    # Busca categorias baseadas no tipo de movimento original
+    tabela_cat = "categorias_receitas" if row['tipo_mov'] == "Receita" else "categorias_despesas"
+    categorias = pd.read_sql_query(f"SELECT nome FROM {tabela_cat} ORDER BY nome ASC", conn)['nome'].tolist()
+    conn.close()
+
+    c1, c2 = st.columns(2)
+    with c1:
+        nova_data = st.date_input("Data", pd.to_datetime(row['data']))
+        novo_valor = st.number_input("Valor R$", min_value=0.0, value=float(row['valor']), format="%.2f")
+        novo_resp = st.selectbox("Responsável", df_resp['nome'].tolist() if not df_resp.empty else ["Geral"], 
+                                 index=df_resp['nome'].tolist().index(resp_atual) if resp_atual in df_resp['nome'].tolist() else 0)
+    
+    with c2:
+        nova_desc_base = st.text_input("Descrição", desc_limpa)
+        nova_cat = st.selectbox("Categoria", categorias, 
+                                index=categorias.index(row['categoria']) if row['categoria'] in categorias else 0)
+
+    st.divider()
+    cd1, cd2 = st.columns(2)
+    with cd1:
+        nova_forma = st.selectbox("Forma de Pagamento", ["Pix", "Boleto", "Dinheiro", "Débito", "Crédito"], 
+                                  index=["Pix", "Boleto", "Dinheiro", "Débito", "Crédito"].index(forma_atual))
+    with cd2:
+        novo_status = st.selectbox("Status", ["Paga", "Pendente"], index=0 if "Paga" in row['descricao'] else 1)
+
     if st.button("Salvar Alterações", use_container_width=True):
+        # Reconstrói os metadados
+        icon = "💰" if nova_forma != "Crédito" else "💳"
+        metadados = f" | 👤 {novo_resp} | {icon} {nova_forma} | {novo_status}"
+        desc_final = f"{nova_desc_base}{metadados}"
+        
         conn = create_connection()
-        conn.execute("UPDATE lancamentos SET data = ?, descricao = ?, valor = ? WHERE id = ?", 
-                     (str(nova_data), nova_desc, novo_valor, row['id']))
+        conn.execute("""
+            UPDATE lancamentos 
+            SET data = ?, descricao = ?, valor = ?, categoria = ? 
+            WHERE id = ?
+        """, (str(nova_data), desc_final, novo_valor, nova_cat, row['id']))
         conn.commit()
         conn.close()
         st.toast("Alterado com sucesso!", icon="📝")
@@ -62,7 +111,6 @@ def popup_novo_lancamento():
     df_cartoes = pd.read_sql_query("SELECT nome, fechamento, vencimento FROM cartoes_credito", conn)
     df_resp = pd.read_sql_query("SELECT nome FROM responsaveis ORDER BY nome ASC", conn)
     
-    # Busca contas cadastradas para o novo campo
     try:
         df_contas = pd.read_sql_query("SELECT nome FROM contas ORDER BY nome ASC", conn)
         contas = df_contas['nome'].tolist() if not df_contas.empty else ["Conta Principal"]
@@ -125,7 +173,6 @@ def popup_novo_lancamento():
                     qtd_parcelas = st.number_input("Nº Parcelas", min_value=2, value=2)
             else:
                 status = st.selectbox("Status", ["Paga", "Pendente"])
-                # Novo campo para Pix ou Boleto
                 identificador = ""
                 if forma_pagto == "Pix":
                     identificador = st.text_input("Chave/Cód. Pix")
