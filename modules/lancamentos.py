@@ -62,6 +62,12 @@ def popup_novo_lancamento():
     df_cartoes = pd.read_sql_query("SELECT nome, fechamento, vencimento FROM cartoes_credito", conn)
     df_resp = pd.read_sql_query("SELECT nome FROM responsaveis ORDER BY nome ASC", conn)
     
+    # Busca contas cadastradas para o novo campo
+    try:
+        df_contas = pd.read_sql_query("SELECT nome FROM contas ORDER BY nome ASC", conn)
+        contas = df_contas['nome'].tolist() if not df_contas.empty else ["Conta Principal"]
+    except: contas = ["Conta Principal"]
+    
     categorias = []
     try:
         tabela_cat = "categorias_receitas" if tipo_mov == "Receita" else "categorias_despesas"
@@ -100,7 +106,8 @@ def popup_novo_lancamento():
         st.divider()
         cd1, cd2 = st.columns(2)
         with cd1:
-            forma_pagto = st.selectbox("Forma de Pagamento", ["Pix", "Dinheiro", "Débito", "Crédito"])
+            forma_pagto = st.selectbox("Forma de Pagamento", ["Pix", "Boleto", "Dinheiro", "Débito", "Crédito"])
+            conta_sel = st.selectbox("Conta / Origem", contas)
         with cd2:
             if forma_pagto == "Crédito":
                 if df_cartoes.empty:
@@ -112,13 +119,21 @@ def popup_novo_lancamento():
                 
                 venc_base = date(data_f.year, data_f.month, int(regra['vencimento']))
                 data_referencia = venc_base + relativedelta(months=1) if data_f.day >= int(regra['fechamento']) else venc_base
-                metadados += f" | 💳 {cartao_sel}"
+                metadados += f" | 💳 Crédito ({cartao_sel})"
                 
                 if st.checkbox("Parcelado?"):
                     qtd_parcelas = st.number_input("Nº Parcelas", min_value=2, value=2)
             else:
                 status = st.selectbox("Status", ["Paga", "Pendente"])
-                metadados += f" | 💰 {forma_pagto}"
+                # Novo campo para Pix ou Boleto
+                identificador = ""
+                if forma_pagto == "Pix":
+                    identificador = st.text_input("Chave/Cód. Pix")
+                elif forma_pagto == "Boleto":
+                    identificador = st.text_input("Número do Boleto")
+                
+                txt_id = f" (Ref: {identificador})" if identificador else ""
+                metadados += f" | 💰 {forma_pagto} ({conta_sel}){txt_id}"
 
     if st.button("🚀 Confirmar Lançamento", use_container_width=True):
         if not descricao:
@@ -159,8 +174,6 @@ def exibir_lancamentos():
         f1, f2, f3, f4 = st.columns([1, 1, 1.5, 1.2])
         mes_sel = f1.selectbox("Mês", [f"{i:02d}" for i in range(1, 13)], index=date.today().month-1)
         ano_sel = f2.selectbox("Ano", [2025, 2026], index=1)
-        
-        # AJUSTE: Incluída a opção "Pendentes"
         visualizacao = f3.selectbox("Ver", ["Todos", "Receitas", "Despesas", "Pendentes", "Metas", "Investimentos", "Dívidas"])
         
         with f4:
@@ -184,7 +197,6 @@ def exibir_lancamentos():
         total_dividas = df_f[df_f['tipo_custo'] == 'Dívida']['valor'].sum()
         saldo_liquido = total_receitas - (total_despesas_gerais + total_metas + total_investido + total_dividas)
 
-        # KPIs
         st.markdown("### Resumo Mensal")
         c1, c2, c3, c4, c5, c6 = st.columns(6)
         c1.metric("Receitas", f"R$ {total_receitas:,.2f}")
@@ -216,7 +228,6 @@ def exibir_lancamentos():
                         if b_d.button("🗑️", key=f"d_{row['id']}"): deletar_item(row['id'])
                         st.markdown('</div>', unsafe_allow_html=True)
 
-        # AJUSTE: Adicionada a lógica de filtragem para "Pendentes"
         filtro_map = {
             "Receitas": (df_f[df_f['tipo_mov'] == 'Receita'], "💰 Receitas", "#3fb950"),
             "Investimentos": (df_f[df_f['tipo_custo'] == 'Investimento'], "📈 Investimentos", "#58a6ff"),
@@ -227,7 +238,7 @@ def exibir_lancamentos():
         }
 
         if visualizacao == "Todos":
-            for k in ["Receitas", "Investimentos", "Metas", "Dívidas", "Despesas"]: # Não repete pendentes no 'Todos' para não duplicar visual
+            for k in ["Receitas", "Investimentos", "Metas", "Dívidas", "Despesas"]:
                 render_secao(*filtro_map[k])
         else:
             render_secao(*filtro_map[visualizacao])
