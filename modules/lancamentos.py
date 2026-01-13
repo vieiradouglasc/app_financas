@@ -40,7 +40,6 @@ def popup_pagar_item(id_item, descricao, valor):
         nova_desc = descricao.replace("Pendente", "Paga")
         conn.execute("UPDATE lancamentos SET descricao = ?, data = ? WHERE id = ?", (nova_desc, str(data_pagto), id_item))
         
-        # Se for uma dívida vinda da aba de dívidas, atualiza o acumulado lá
         if "Dívida:" in descricao:
             try:
                 nome_divida = descricao.split("|")[0].replace("Dívida:", "").split("(")[0].strip()
@@ -55,7 +54,6 @@ def popup_pagar_item(id_item, descricao, valor):
 @st.dialog("Novo Lançamento", width="medium")
 def popup_novo_lancamento():
     st.markdown("### 📝 Registrar Movimentação")
-    # REMOVIDO: "Dívida" das opções de rádio conforme solicitado
     tipo_mov = st.radio("", ["Despesa", "Receita", "Meta", "Investimento"], horizontal=True)
     
     conn = create_connection()
@@ -161,7 +159,9 @@ def exibir_lancamentos():
         f1, f2, f3, f4 = st.columns([1, 1, 1.5, 1.2])
         mes_sel = f1.selectbox("Mês", [f"{i:02d}" for i in range(1, 13)], index=date.today().month-1)
         ano_sel = f2.selectbox("Ano", [2025, 2026], index=1)
-        visualizacao = f3.selectbox("Ver", ["Todos", "Receitas", "Despesas", "Metas", "Investimentos", "Dívidas"])
+        
+        # AJUSTE: Incluída a opção "Pendentes"
+        visualizacao = f3.selectbox("Ver", ["Todos", "Receitas", "Despesas", "Pendentes", "Metas", "Investimentos", "Dívidas"])
         
         with f4:
             st.markdown("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True)
@@ -201,7 +201,6 @@ def exibir_lancamentos():
                 st.markdown(f"#### {titulo}")
                 for _, row in dados.sort_values(by='data').iterrows():
                     is_pendente = "Pendente" in str(row['descricao'])
-                    bg = "#161b22"
                     
                     with st.container():
                         st.markdown(f'''<div class="lista-item" style="border-left-color: {cor_borda};">''', unsafe_allow_html=True)
@@ -217,16 +216,19 @@ def exibir_lancamentos():
                         if b_d.button("🗑️", key=f"d_{row['id']}"): deletar_item(row['id'])
                         st.markdown('</div>', unsafe_allow_html=True)
 
+        # AJUSTE: Adicionada a lógica de filtragem para "Pendentes"
         filtro_map = {
             "Receitas": (df_f[df_f['tipo_mov'] == 'Receita'], "💰 Receitas", "#3fb950"),
             "Investimentos": (df_f[df_f['tipo_custo'] == 'Investimento'], "📈 Investimentos", "#58a6ff"),
             "Metas": (df_f[df_f['tipo_custo'] == 'Meta'], "🎯 Metas", "#bc8cff"),
             "Dívidas": (df_f[df_f['tipo_custo'] == 'Dívida'], "📉 Dívidas", "#f85149"),
-            "Despesas": (df_f[(df_f['tipo_mov'] == 'Despesa') & (~df_f['tipo_custo'].isin(['Meta', 'Investimento', 'Dívida']))], "🛒 Despesas Gerais", "#db6d28")
+            "Despesas": (df_f[(df_f['tipo_mov'] == 'Despesa') & (~df_f['tipo_custo'].isin(['Meta', 'Investimento', 'Dívida']))], "🛒 Despesas Gerais", "#db6d28"),
+            "Pendentes": (df_f[df_f['descricao'].str.contains("Pendente", case=False, na=False)], "⏳ Lançamentos Pendentes", "#f1c40f")
         }
 
         if visualizacao == "Todos":
-            for k in filtro_map: render_secao(*filtro_map[k])
+            for k in ["Receitas", "Investimentos", "Metas", "Dívidas", "Despesas"]: # Não repete pendentes no 'Todos' para não duplicar visual
+                render_secao(*filtro_map[k])
         else:
             render_secao(*filtro_map[visualizacao])
     else:
